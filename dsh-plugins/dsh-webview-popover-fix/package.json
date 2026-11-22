@@ -1,6 +1,6 @@
 {
   "name": "dsh-webview-popover-fix",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DeepSeek Harness 插件：修复长转录会话里 CSS 锚定浮层被定位到视口外的问题（命令菜单 / 权限 / 模型 / Token 用量 / 问答卡片点了没反应）。",
   "keywords": [
     "deepseek",
