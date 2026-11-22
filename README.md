@@ -11,11 +11,15 @@
 
 > **Copilot 桥接不影响「忠实窗口」形态**——它只是为便捷编程而做的功能提升；你不选这些模型条目时，一切与没有桥接功能时完全一样。
 
-如果喜欢本扩展请转至 [Deepseek-Harness-for-VS-Code](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code) 星标助力；对 Chrome Extension 有需求也请关注 [Deepseek-Harness-for-Chrome](https://github.com/Vithrive/Deepseek-Harness-for-Chrome)。
+如果这个 fork 对你有用，欢迎给 [本仓库](https://github.com/ZSCaiGou/Deepseek-Harness-for-VS-Code) 星标；扩展本身出自 [Vithrive/Deepseek-Harness-for-VS-Code](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code)，也请去上游星标支持原作者。对 Chrome Extension 有需求请关注上游的 [Deepseek-Harness-for-Chrome](https://github.com/Vithrive/Deepseek-Harness-for-Chrome)。
 
 > **版本适配**：本扩展 **v0.8.34 起**适配 **dsh v0.1.2-rc.1 及以上版本**——自动完成该版本起新增的 Web 浏览器认证（扩展受管认证代理，面板与 Copilot 桥接全程免登录、免打扰，详见下文「dsh web 浏览器认证」）；同时**向下兼容**未启用认证的旧版 dsh（启动参数探测、RPC 端点新旧格式自动回退）。**1.0.0 起**同步适配 **dsh 0.2.x** 的回答事件通道（`assistant/message`，旧的 `assistant/chunk` 仍兼容），并跟随 DeepSeek 现役模型（`deepseek-flash` = V4.1-Flash、`deepseek-v4-pro`）。
 
 ## 🆕 最近版本新增功能
+
+### v1.2.0（本 fork）—— 资源管理器右键加入引用（2026-11）
+
+- 新增命令 **`dsh.insertPath`** 与资源管理器右键菜单：右键文件/文件夹 →「DeepSeek Harness: 加入对话框引用」，支持多选；细节见文末「Fork 改动」。
 
 ### v1.1.3 —— 配套插件防清理（Issue #31）+ 文件链接 anchor 兜底（Issue #32，2026-11）
 
@@ -81,14 +85,19 @@
 
 ## 🚀 快速安装
 
-- **Marketplace**：在 VS Code 扩展市场搜索 **DeepSeek Harness for VSCode** 一键安装（[Marketplace 页面](https://marketplace.visualstudio.com/items?itemName=vithrive.deepseek-harness-vscode)）。
-- **.vsix**：从 [GitHub Releases](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code/releases/latest) 下载 `deepseek-harness-vscode-<版本>.vsix`，然后：
+> 本 fork 的扩展 id 是 `zscaigou.deepseek-harness-vscode`，**未发布到 Marketplace**。下面第一条装的是本 fork，后面那条是上游官方版。
+
+- **本 fork（`.vsix`）**：从 [本仓库](https://github.com/ZSCaiGou/Deepseek-Harness-for-VS-Code) 取对应版本的 `deepseek-harness-vscode-<版本>.vsix`，然后：
 
   ```bash
   code --install-extension deepseek-harness-vscode-<版本>.vsix
   ```
 
   或在 VS Code 中：`Ctrl+Shift+P` → `Extensions: Install from VSIX...`。
+
+- **本 fork（源码 / 开发模式）**：见文末「从源码安装（开发模式）」。
+
+- **上游官方版（Marketplace）**：搜 **DeepSeek Harness for VSCode** 一键安装（[Marketplace 页面](https://marketplace.visualstudio.com/items?itemName=vithrive.deepseek-harness-vscode)）；注意上游版**不含**本 fork 的「右键加入对话框引用」。两个 id 可并存，但**不要同时启用**——它们会抢同一个 `dsh web` 端口与同一个 DSH profile。
 
 安装后 `Ctrl+Shift+P` → `Reload Window`。打开面板时扩展会自动检测并启动 DSH（未安装会提示并代为执行 `npm install -g @deepseek-ai/dsh`）；如果装的是**官网 Windows 桌面版**，扩展会直接用它自带的内置 CLI 启动，**不需要 npm / Node**（见下节）。
 
@@ -315,7 +324,7 @@ DSH：用自己的一套 harness（记忆 / 技能 / AGENTS.md / 工具 / agent 
 
 - 两条能力线：**忠实窗口**（把 DSH Web GUI 原样内嵌到侧边栏 / 编辑器标签页）与 **Copilot 桥接**（把 DSH 注册为 VS Code 聊天模型）——桥接仍在持续跟进 DeepSeek 模型与 dsh 版本演进，遇到不一致会在扩展内明确告警而不是静默降级；
 - 欢迎大家在不同操作系统（Windows / macOS / Linux，以及 Remote-SSH、WSL、Dev Containers 等远程场景）中测试使用；
-- 如遇问题请在 [GitHub Issues](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code/issues) 提出，作者会尽快回复和改进；
+- 如遇问题请在 [本 fork 的 Issues](https://github.com/ZSCaiGou/Deepseek-Harness-for-VS-Code/issues)（上游问题请提给 [上游](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code/issues)） 提出，作者会尽快回复和改进；
 - 再次强调：**Copilot 桥接不影响「忠实窗口」形态**——面板始终忠实呈现 DSH Web GUI，不对页面注入、改写或拦截任何东西，也不干涉你对 DSH 的插件开发与界面定制。（唯二的例外是两个可关闭的配套插件：修复 macOS 剪贴板快捷键的 `dsh-webview-clipboard`，以及把对话里的工作区文件链接改接到 VS Code 资源管理器的 `dsh-vscode-file-links`，两者都由本扩展随包分发、可一键关闭。）
 
 ---
@@ -325,7 +334,7 @@ DSH：用自己的一套 harness（记忆 / 技能 / AGENTS.md / 工具 / agent 
 本扩展是纯 JavaScript，不需要 npm install、不需要编译：
 
 ```bash
-git clone https://github.com/Vithrive/Deepseek-Harness-for-VS-Code.git
+git clone https://github.com/ZSCaiGou/Deepseek-Harness-for-VS-Code.git
 code Deepseek-Harness-for-VS-Code
 ```
 
