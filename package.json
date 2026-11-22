@@ -24,6 +24,7 @@
     "onView:dsh.webview",
     "onCommand:dshPanel.resetChatMapping",
     "onCommand:dshPanel.chatStatus",
+    "onCommand:dsh.insertPath",
     "onStartupFinished"
   ],
   "contributes": {
@@ -213,6 +214,10 @@
       {
         "command": "dshPanel.diagnoseModels",
         "title": "DeepSeek Harness: 诊断 DSH 模型注册表"
+      },
+      {
+        "command": "dsh.insertPath",
+        "title": "DeepSeek Harness: 加入对话框引用"
       }
     ],
     "menus": {
@@ -221,6 +226,13 @@
           "command": "dsh.sendSelection",
           "when": "editorHasSelection",
           "group": "9_cutcopypaste@100"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "dsh.insertPath",
+          "when": "resourceScheme == file",
+          "group": "9_cutcopypaste@101"
         }
       ],
       "view/title": [

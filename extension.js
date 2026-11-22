@@ -4562,6 +4562,42 @@ function activate(context) {
     }
   });
 
+  // 右键「加入对话框引用」：把资源管理器里选中的文件/文件夹作为引用追加进 DSH 输入框。
+  const insertPathCmd = vscode.commands.registerCommand('dsh.insertPath', async (uri, uris) => {
+    const target = activeTab || activeView;
+    if (!target) {
+      vscode.window.showWarningMessage('请先打开 DeepSeek Harness 面板或标签页');
+      return;
+    }
+    const picked = Array.isArray(uris) && uris.length > 0 ? uris : (uri ? [uri] : []);
+    const entries = [];
+    for (const item of picked) {
+      const fsPath = item && item.fsPath ? item.fsPath : undefined;
+      if (!fsPath) continue;
+      let kind = 'file';
+      try { if (fs.statSync(fsPath).isDirectory()) kind = 'folder'; } catch (e) { /* 保留 file */ }
+      entries.push({ filePath: fsPath, kind: kind });
+    }
+    if (entries.length === 0) {
+      vscode.window.showWarningMessage('没有可加入对话框的文件或文件夹');
+      return;
+    }
+    // 复用既有的 insert-selection 桥（webview 包装层原样转发到 iframe）；
+    // paths 数组表示"纯路径引用"，dsh-drop-caret 会按路径逐个插入，不带行号。
+    const ok = await target.webview.postMessage({
+      type: 'insert-selection',
+      paths: entries,
+      filePath: entries[0].filePath,
+      startLine: 1,
+      endLine: 1
+    });
+    if (ok) {
+      vscode.window.showInformationMessage('已发送 ' + entries.length + ' 个路径到 DSH，等待面板转发…');
+    } else {
+      vscode.window.showErrorMessage('发送失败：DSH 面板 webview 未就绪，请先打开面板并等待加载完成');
+    }
+  });
+
   const diagnoseModelsCmd = vscode.commands.registerCommand('dshPanel.diagnoseModels', () => {
     diagnoseModels().catch((e) => vscode.window.showErrorMessage('诊断失败：' + (e && e.message ? e.message : String(e))));
   });
@@ -4577,7 +4613,7 @@ function activate(context) {
     vscode.window.showInformationMessage('已重置 DSH 会话映射：下次提问将创建新的 DSH 会话。');
   });
 
-  context.subscriptions.push(viewSub, openInTabCmd, refreshCmd, openBrowserCmd, restartCmd, wsSub, sendSelectionCmd, chatStatusCmd, diagnoseModelsCmd, resetChatCmd);
+  context.subscriptions.push(viewSub, openInTabCmd, refreshCmd, openBrowserCmd, restartCmd, wsSub, sendSelectionCmd, insertPathCmd, chatStatusCmd, diagnoseModelsCmd, resetChatCmd);
 }
 
 function deactivate() {
