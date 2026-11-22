@@ -1,6 +1,14 @@
 # 更新日志
 
-本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。完整提交历史见 [GitHub](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code/commits/main)。
+本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+## 1.2.0（Fork）—— 资源管理器右键加入引用
+
+> 本版本由 ZSCaiGou 的 fork 发布（上游基线 1.1.3）。改动说明见 README「Fork 改动」。
+
+- 新增命令 `dsh.insertPath` 与 `explorer/context` 菜单：右键文件/文件夹 →「DeepSeek Harness: 加入对话框引用」，支持多选。
+- 复用 `insert-selection` 桥，新增 `paths` 字段传纯路径引用（不带行号）。
+- 发布者 `vithrive` → `zscaigou`，扩展 id 变为 `zscaigou.deepseek-harness-vscode`。
+完整提交历史见 [GitHub](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code/commits/main)。
 
 ## 1.1.3 —— 配套插件防清理（Issue #31）+ 文件链接 anchor 兜底（Issue #32）
 

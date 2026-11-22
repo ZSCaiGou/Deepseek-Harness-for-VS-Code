@@ -1,4 +1,8 @@
 # DeepSeek Harness for VS Code
+> **本仓库是 fork**：基于 [Vithrive/Deepseek-Harness-for-VS-Code](https://github.com/Vithrive/Deepseek-Harness-for-VS-Code) 的 `1.1.3`，遵循 MIT 协议；上游作者与版权归原项目贡献者所有（见 [NOTICE](NOTICE) 与 [LICENSE](LICENSE)）。
+>
+> 本 fork 由 **ZSCaiGou** 维护（<https://github.com/ZSCaiGou/Deepseek-Harness-for-VS-Code>），扩展 id 为 `zscaigou.deepseek-harness-vscode`，可与 Marketplace 上的原版 `vithrive.deepseek-harness-vscode` 并存。本 fork 相对上游的改动见下方「Fork 改动」与 [CHANGELOG](CHANGELOG.md)。
+
 
 一个零依赖的 VS Code 扩展，把 **DeepSeek Harness (DSH)** 接入 VS Code 的两种形态：
 
@@ -336,3 +340,9 @@ code --install-extension deepseek-harness-vscode-<版本>.vsix
 
 - **前置条件**：已安装 DeepSeek Harness，以下三种方式扩展都会自动识别，也可用 `dshPanel.dshCommand` 指定完整路径：① `npm install -g @deepseek-ai/dsh` 全局安装；② `npx @deepseek-ai/dsh`；③ **官网 Windows 桌面版**（v1.0.1 起自动探测其内置 CLI，无需 npm/Node）。DSH 默认响应头未设置 `X-Frame-Options` / 严格 CSP，可被 iframe 正常内嵌。
 - **已知限制**：DSH 前端在 VS Code webview 多实例下退化为单例（普通浏览器多开正常，属 DSH 前端实现层面问题），因此标签页与侧边栏暂不能同时加载 DSH；扩展以「单活动视图」策略规避（打开标签页时侧边栏自动让位显示占位，关闭后自动恢复）。Remote-SSH / Dev Containers 下标签页与侧边栏的转发地址可能落到同一客户端端口（origin 相同），该隔离技巧会退化，但「单活动视图」仍然生效。
+
+## Fork 改动（相对上游 1.1.3）
+
+- **新增命令 `dsh.insertPath`**：资源管理器里右键文件或文件夹 →「DeepSeek Harness: 加入对话框引用」，把路径作为引用追加进 DSH 输入框；支持多选。
+- 复用既有的 `insert-selection` webview 桥，新增 `paths` 数组字段传「纯路径引用」（不带行号），由配套插件 `dsh-drop-caret` 逐个插入。
+- 版本号 `1.1.3` → `1.2.0`，发布者改为 `zscaigou`。
