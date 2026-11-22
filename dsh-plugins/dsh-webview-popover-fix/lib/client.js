@@ -1,20 +1,26 @@
 // dsh-webview-popover-fix client half.
 //
-// 背景：DSH 0.2.2-rc.x 的浮层（role="dialog"）改用 CSS 锚定定位，并把垂直坐标
-// 减去了「最大可滚动量」(scrollHeight - clientHeight)，而不是当前 scrollTop。
+// 背景：DSH 0.2.2-rc.x 的浮层（role="dialog"）用 CSS 锚定定位，并把垂直坐标减去了
+// 「最大可滚动量」(scrollHeight - clientHeight)，而不是当前 scrollTop。
 // 实测公式：dialogTop ≈ C - (scrollHeight - clientHeight)。于是长转录（转录越高、
 // 可滚动量越大）会把浮层推到视口外几万像素处：元素在 DOM 里、样式也正常，但看不见、
-// 点不到——典型表现为「命令菜单/权限/模型/Token 用量点不开」「问答卡片卡住」。
+// 点不到——典型表现为「命令菜单 / 权限 / 模型 / Token 用量点不开」「问答卡片卡住」。
 //
-// 本插件只做一件事：浮层出现在视口外时，按锚点元素把它的位置纠正回视口内。
-// 不搬 DOM（避免 React 事件委托失效），只写内联样式；等下一次 pointerdown 时
-// 清掉自己写的样式，让框架按原逻辑重新定位（如果原逻辑正常，就不再干预）。
+// 作用范围被刻意收紧，避免误伤正常浮层：
+//   1) 只处理**完全**在视口外的浮层（部分露出边缘属于正常形态，不碰）；
+//   2) 只处理锚点在视口下半部分（输入区那一排按钮）的浮层，其它位置的浮层不碰；
+//   3) 插入后先等 SETTLE_MS 再判定，避开框架尚未完成定位的瞬间；
+//   4) 不搬 DOM（避免 React 事件委托失效），只写内联样式；下一次 pointerdown /
+//      resize 时清掉自己写的样式，把定位权交还框架。
 window.__ModuleLoader__.load({ id: 'dsh-webview-popover-fix', factory: function () {
   var module = { exports: {} }
   var exports = module.exports
 
-  var MARGIN = 8          // 与视口边缘的最小间距
-  var MAX_HEIGHT_RATIO = 0.7
+  var MARGIN = 8              // 与视口边缘的最小间距
+  var MAX_HEIGHT_RATIO = 0.7  // 纠偏后的最大高度
+  var SETTLE_MS = 160         // 插入后等这么久再判定
+  var RECHECK_MS = 450        // 再补一次判定（框架可能动画/测量后才最终定位）
+  var COMPOSER_BOTTOM_RATIO = 0.5  // 锚点必须位于视口下半部分
   var SELECTOR = '[role="dialog"],[popover],[style*="position-anchor"]'
   var Z_INDEX = '2000'
   var APPLIED = [
@@ -22,21 +28,18 @@ window.__ModuleLoader__.load({ id: 'dsh-webview-popover-fix', factory: function 
     'position', 'left', 'top', 'right', 'bottom', 'max-height', 'z-index'
   ]
 
-  /** 曾经被本插件改过的元素（下次交互前清掉，避免污染框架自己的定位）。 */
   var touched = new Set()
-  var scheduled = false
+  var settleTimer = null
+  var recheckTimer = null
   var disposed = false
 
-  /** 视口矩形是否与可见区域有交集（宽或高为 0 的元素视为未显示）。 */
-  function visible(el) {
-    var style = window.getComputedStyle(el)
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false
-    var rect = el.getBoundingClientRect()
+  /** 整个矩形是否完全在视口之外（含"面积太小视为未显示"）。 */
+  function fullyOutside(rect) {
     if (rect.width < 2 || rect.height < 2) return false
-    return rect.bottom > MARGIN
-      && rect.top < window.innerHeight - MARGIN
-      && rect.right > MARGIN
-      && rect.left < window.innerWidth - MARGIN
+    return rect.bottom <= 0
+      || rect.top >= window.innerHeight
+      || rect.right <= 0
+      || rect.left >= window.innerWidth
   }
 
   /** 按 position-anchor 的锚点名找到锚点元素（DSH 用内联 anchor-name 声明）。 */
@@ -57,24 +60,28 @@ window.__ModuleLoader__.load({ id: 'dsh-webview-popover-fix', factory: function 
     return null
   }
 
-  /** 把元素纠正到视口内（优先贴锚点上方，放不下则贴下方，最后做视口内 clamp）。 */
-  function rescue(el) {
+  /**
+   * 只在「输入区那一排按钮」的浮层上生效：锚点必须存在且位于视口下半部分。
+   * 侧栏、顶部工具栏等位置的浮层一律不碰。
+   */
+  function composerAnchor(el) {
+    var anchor = findAnchor(el)
+    if (anchor === null) return null
+    var rect = anchor.getBoundingClientRect()
+    if (rect.top < window.innerHeight * COMPOSER_BOTTOM_RATIO) return null
+    return anchor
+  }
+
+  /** 把元素纠正到视口内（优先贴锚点上方，放不下贴下方，最后视口内 clamp）。 */
+  function rescue(el, anchor) {
     var rect = el.getBoundingClientRect()
     var width = Math.min(Math.max(rect.width, 200), window.innerWidth - MARGIN * 2)
     var maxHeight = Math.round(window.innerHeight * MAX_HEIGHT_RATIO)
     var height = Math.min(rect.height > 2 ? rect.height : maxHeight, maxHeight)
-    var left
-    var top
-    var anchor = findAnchor(el)
-    if (anchor !== null) {
-      var anchorRect = anchor.getBoundingClientRect()
-      left = anchorRect.right - width
-      top = anchorRect.top - height - MARGIN
-      if (top < MARGIN) top = anchorRect.bottom + MARGIN
-    } else {
-      left = window.innerWidth - width - MARGIN
-      top = window.innerHeight - height - MARGIN
-    }
+    var anchorRect = anchor.getBoundingClientRect()
+    var left = anchorRect.right - width
+    var top = anchorRect.top - height - MARGIN
+    if (top < MARGIN) top = anchorRect.bottom + MARGIN
     left = Math.max(MARGIN, Math.min(left, window.innerWidth - width - MARGIN))
     top = Math.max(MARGIN, Math.min(top, window.innerHeight - height - MARGIN))
 
@@ -99,21 +106,21 @@ window.__ModuleLoader__.load({ id: 'dsh-webview-popover-fix', factory: function 
     style.setProperty('max-height', maxHeight + 'px', 'important')
     style.setProperty('z-index', Z_INDEX, 'important')
     touched.add(el)
-    return true
   }
 
-  /** 扫描所有可见浮层，只处理「在视口外」的那些。 */
+  /** 扫描：只有「完全在视口外」且「锚点在输入区」的浮层才会被纠正。 */
   function scan() {
     if (disposed) return
     var dialogs = document.querySelectorAll(SELECTOR)
     for (var i = 0; i < dialogs.length; i += 1) {
       var el = dialogs[i]
       if (el.nodeType !== 1) continue
-      if (el.getBoundingClientRect().width < 2) continue
-      if (visible(el)) continue
       if (el.style.display === 'none') continue
+      if (!fullyOutside(el.getBoundingClientRect())) continue
+      var anchor = composerAnchor(el)
+      if (anchor === null) continue
       try {
-        rescue(el)
+        rescue(el, anchor)
       } catch (error) {
         console.error('[dsh-webview-popover-fix] rescue failed:', error)
       }
@@ -121,15 +128,19 @@ window.__ModuleLoader__.load({ id: 'dsh-webview-popover-fix', factory: function 
   }
 
   function scheduleScan() {
-    if (scheduled || disposed) return
-    scheduled = true
-    // 两帧：先让框架完成插入与首次布局，再纠正。
-    window.requestAnimationFrame(function () {
-      window.requestAnimationFrame(function () {
-        scheduled = false
+    if (disposed) return
+    // 防抖 + 二次判定：插入瞬间框架可能还没定位完，等一拍再测。
+    if (settleTimer !== null) window.clearTimeout(settleTimer)
+    settleTimer = window.setTimeout(function () {
+      settleTimer = null
+      scan()
+    }, SETTLE_MS)
+    if (recheckTimer === null) {
+      recheckTimer = window.setTimeout(function () {
+        recheckTimer = null
         scan()
-      })
-    })
+      }, RECHECK_MS)
+    }
   }
 
   /** 清掉本插件写过的样式，把定位权交还给框架。 */
@@ -169,13 +180,14 @@ window.__ModuleLoader__.load({ id: 'dsh-webview-popover-fix', factory: function 
       observer.observe(document.body, { childList: true, subtree: true })
       document.addEventListener('pointerdown', onPointerDown, true)
       window.addEventListener('resize', onResize)
-      // 首屏已有浮层（例如被框架恢复的）也检查一次。
       scheduleScan()
       return function () {
         disposed = true
         observer.disconnect()
         document.removeEventListener('pointerdown', onPointerDown, true)
         window.removeEventListener('resize', onResize)
+        if (settleTimer !== null) window.clearTimeout(settleTimer)
+        if (recheckTimer !== null) window.clearTimeout(recheckTimer)
         clearTouched()
       }
     })

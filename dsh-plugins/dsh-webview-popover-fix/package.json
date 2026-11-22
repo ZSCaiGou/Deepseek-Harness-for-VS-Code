@@ -1,7 +1,7 @@
 {
   "name": "dsh-webview-popover-fix",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness 插件：DSH 0.2.2-rc.x 的锚定浮层在长转录里会把垂直坐标减去「最大可滚动量」(scrollHeight - clientHeight)，导致浮层被推到视口外几万像素——元素在 DOM 里、样式正常，但看不见也点不到。本插件把跑出视口的 role=\"dialog\" 浮层按锚点元素纠正回可视区。由 Deepseek-Harness-for-VS-Code 扩展内置分发。",
+  "version": "0.1.1",
+  "description": "DeepSeek Harness 插件：修复长转录会话里 CSS 锚定浮层被定位到视口外的问题（命令菜单 / 权限 / 模型 / Token 用量 / 问答卡片点了没反应）。",
   "keywords": [
     "deepseek",
     "harness",
@@ -22,9 +22,23 @@
   },
   "files": [
     "lib",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
   ],
   "license": "MIT",
+  "author": {
+    "name": "ZSCaiGou",
+    "url": "https://github.com/ZSCaiGou"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZSCaiGou/dsh-webview-popover-fix.git"
+  },
+  "homepage": "https://github.com/ZSCaiGou/dsh-webview-popover-fix#readme",
+  "bugs": {
+    "url": "https://github.com/ZSCaiGou/dsh-webview-popover-fix/issues"
+  },
   "dsh": {
     "client": {
       "inject": [
@@ -35,5 +49,8 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
   }
 }
