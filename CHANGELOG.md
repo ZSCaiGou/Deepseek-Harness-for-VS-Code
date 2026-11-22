@@ -1,6 +1,21 @@
 # 更新日志
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## 1.3.0（Fork）—— 浮层纠偏插件（长转录里点不开菜单/权限/模型/问答卡片）
+
+> 本版本由 ZSCaiGou 的 fork 发布（上游基线 1.1.3）。
+
+- **根因**：DSH 0.2.2-rc.x 的浮层改用 CSS 锚定定位，垂直坐标减的是「最大可滚动量」
+  `scrollHeight - clientHeight`，而不是当前 `scrollTop`。实测公式
+  `dialogTop ≈ C - (scrollHeight - clientHeight)`：转录越长，浮层被推得越远 ——
+  长会话里会落到视口上方几万像素处，元素在 DOM 里、样式正常，但看不见也点不到。
+  命令菜单（`+`）、权限预设、模型选择、Token 用量、以及「回答问题」卡片都走这套浮层。
+- **新增内置插件 `dsh-webview-popover-fix`**（随扩展分发、自动安装、可关闭）：
+  浮层出现在视口外时，按 `position-anchor` 找到锚点元素，重算一组 `top/left` 并
+  clamp 进视口；不搬 DOM，React 事件委托不受影响。配置开关
+  `dshPanel.installPopoverFixPlugin`（默认 `true`）。
+
 ## 1.2.0（Fork）—— 资源管理器右键加入引用
 
 > 本版本由 ZSCaiGou 的 fork 发布（上游基线 1.1.3）。改动说明见 README「Fork 改动」。

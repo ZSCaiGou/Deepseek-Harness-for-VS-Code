@@ -352,6 +352,8 @@ code --install-extension deepseek-harness-vscode-<版本>.vsix
 
 ## Fork 改动（相对上游 1.1.3）
 
+- **内置插件 `dsh-webview-popover-fix`**（本 fork 新增）：DSH 0.2.2-rc.x 的锚定浮层在长转录里会把位置算到视口外（`top ≈ C - (scrollHeight - clientHeight)`），表现为命令菜单 / 权限 / 模型 / Token 用量 / 问答卡片点了没反应；插件把跑出视口的浮层按锚点纠正回可视区。开关 `dshPanel.installPopoverFixPlugin`。
+
 - **新增命令 `dsh.insertPath`**：资源管理器里右键文件或文件夹 →「DeepSeek Harness: 加入对话框引用」，把路径作为引用追加进 DSH 输入框；支持多选。
 - 复用既有的 `insert-selection` webview 桥，新增 `paths` 数组字段传「纯路径引用」（不带行号），由配套插件 `dsh-drop-caret` 逐个插入。
 - 版本号 `1.1.3` → `1.2.0`，发布者改为 `zscaigou`。

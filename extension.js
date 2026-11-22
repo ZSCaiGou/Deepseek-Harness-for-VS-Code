@@ -2040,6 +2040,13 @@ const FILE_LINK_PLUGIN_NAME = 'dsh-vscode-file-links';
 // 浏览器窗口（DeepSeek 账号登录正是这条路径），由插件把链接交给宿主的
 // vscode.env.openExternal，在客户端（如 WSL/Remote 下的 Windows 本机）浏览器打开。
 const OPEN_EXTERNAL_PLUGIN_NAME = 'dsh-vscode-open-external';
+
+// 内置分发的浮层纠偏插件（源码在 dsh-plugins/ 目录，随扩展文件直接写入 DSH web
+// profile，不经 npm）：DSH 0.2.2-rc.x 的锚定浮层在长转录里会把垂直坐标减掉
+// 「最大可滚动量」而不是当前 scrollTop，浮层被推到视口外几万像素——看不见也点不到
+// （命令菜单 / 权限 / 模型 / Token 用量 / 问答卡片都走这套浮层）。插件把跑出视口的
+// 浮层按锚点纠正回可视区；可经 dshPanel.installPopoverFixPlugin 关闭。
+const POPOVER_FIX_PLUGIN_NAME = 'dsh-webview-popover-fix';
 // 插件源码所在目录（打包进 .vsix，运行时按单一源头读取，避免模板字面量转义问题）。
 const BUNDLED_PLUGINS_DIR = 'dsh-plugins';
 // DSH 页面（iframe）与 webview 之间的握手 / 转发协议标识。
@@ -2411,6 +2418,43 @@ async function ensureOpenExternalPlugin(profileDir) {
 }
 
 /**
+ * 内置浮层纠偏插件的文件清单（相对路径 → 内容）。
+ * @returns {Record<string, string>}
+ */
+function popoverFixPluginFiles() {
+  const base = path.join(__dirname, BUNDLED_PLUGINS_DIR, POPOVER_FIX_PLUGIN_NAME);
+  const rels = ['package.json', 'cordis.patch.yml', 'lib/index.js', 'lib/client.js'];
+  const files = {};
+  for (const rel of rels) {
+    files[rel] = fs.readFileSync(path.join(base, rel), 'utf8');
+  }
+  return files;
+}
+
+/** 内置浮层纠偏插件的版本（以插件自己的 package.json 为单一源头）。 */
+function popoverFixPluginVersion() {
+  try {
+    return JSON.parse(popoverFixPluginFiles()['package.json']).version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
+/**
+ * 确保内置插件 dsh-webview-popover-fix 已落盘并声明（不经 npm）。
+ * @returns {Promise<boolean>} 本次是否发生新增/升级/修复（true 时需重启 dsh web 生效）。
+ */
+async function ensurePopoverFixPlugin(profileDir) {
+  return ensureBundledPlugin(
+    profileDir,
+    POPOVER_FIX_PLUGIN_NAME,
+    popoverFixPluginVersion(),
+    popoverFixPluginFiles,
+    'DSH 浮层纠偏插件'
+  );
+}
+
+/**
  * 工作区文件链接的点击行为配置。
  * @returns {'revealAndOpen'|'revealOnly'|'off'}
  */
@@ -2463,6 +2507,14 @@ async function ensureDshPlugins() {
       if (await ensureOpenExternalPlugin(profileDir)) {
         changed = true;
       }
+    // 内置浮层纠偏插件（文件随扩展直接写入，不走 npm）：
+    // 长转录里锚定浮层会被算到视口外；插件把跑出视口的浮层纠正回可视区。
+    // 可经 dshPanel.installPopoverFixPlugin 关闭。
+    if (cfg().get('dshPanel.installPopoverFixPlugin', true)) {
+      if (await ensurePopoverFixPlugin(profileDir)) {
+        changed = true;
+      }
+    }
     }
     return changed;
   } catch (e) {
@@ -2720,7 +2772,7 @@ async function preparePanelHtml(isTab) {
   const pluginInstalled = await ensureDshPlugins();
   if (pluginInstalled && (await checkUrl(getUrl()))) {
     // 服务已在运行但插件刚装上/被修复，需重启 dsh web 才加载。
-    vscode.window.showInformationMessage('已自动安装/更新或修复 DSH 配套插件（dsh-drop-caret / dsh-webview-clipboard / dsh-vscode-file-links / dsh-vscode-open-external）。这些插件可能被 dsh plugin 命令清理过（Issue #31），请点击面板顶部的「重启 dsh web」使其生效。');
+    vscode.window.showInformationMessage('已自动安装/更新或修复 DSH 配套插件（dsh-drop-caret / dsh-webview-clipboard / dsh-vscode-file-links / dsh-vscode-open-external / dsh-webview-popover-fix）。这些插件可能被 dsh plugin 命令清理过（Issue #31），请点击面板顶部的「重启 dsh web」使其生效。');
   }
 
   const ok = await ensureRunningOnce();
